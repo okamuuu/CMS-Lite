@@ -1,0 +1,17 @@
+This is Perl module CMS::Lite.
+
+WARNINGS
+    This is considered as alpha quality software. Most of the stuff are
+    undocumented since it's considered unstable and will likely to change.
+    You should sometimes look at the source code or example apps in *eg*
+    directory to see how this thing works.
+    
+    And this module is my personal project. So may change without prior notice...
+
+DESCRIPTION
+    CMS::Lite is helpfull to write web documentation. 
+    It allows yout to generate xhtml only to write text formatted Text::Trac, Text::Hatena, or simular formatt text.
+    
+Author
+    Okamura
+

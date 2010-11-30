@@ -1,0 +1,170 @@
+= MySQL導入 =
+
+'''''MySQLを導入します。'''''
+
+== 使用するデータベースエンジン ==
+
+当サイトでは''innodb''を使用したDB構築を紹介します。
+
+== MySQL 5.1の最新のソースからdebを作成する ==
+
+=== debを作成するための準備 ===
+
+ビルドするために必要なものをインストールします。
+
+{{{
+% sudo aptitude install dh-make devscripts debhelper fakeroot lintian pbuilder piuparts dpatch 
+build-essential
+
+}}}
+
+{{{
+% export DEBEMAIL="yourname@example.com"
+% export DEBFULLNAME="Your Name"
+}}}
+
+== インストール ==
+
+{{{
+% sudo vi /etc/apt/sources.list
+}}}
+
+{{{
+deb http://ftp.jp.debian.org/debian experimental main
+deb-src http://ftp.jp.debian.org/debian experimental main
+}}}
+
+{{{
+% sudo aptitude update
+% sudo aptitude safe-upgrade 
+% sudo apt-cache show mysql-server-5.1
+% sudo aptitude install mysql-server-5.1
+}}}
+
+== 再作成 ==
+
+''MySQL''データファイル用のディレクトリを一度削除してから再作成します。
+
+{{{
+% sudo rm -fr /var/lib/mysql
+% sudo mkdir -p /var/lib/mysql/blog
+% sudo chown -R mysql:mysql /var/lib/mysql
+}}}
+
+バックアップ用ディレクトリを作成
+
+{{{
+% sudo mkdir -p /backup/mysql/hotcopy
+% sudo chown -R  mysql:mysql /backup/mysql
+}}}
+
+設定ファイルをmy-medium.cnfのものに変更してから
+修正を行います。
+
+{{{
+% sudo cp /usr/share/mysql/my-medium.cnf /etc/my.cnf
+% sudo vi /etc/my.cnf
+}}}
+
+{{{
+[client]
+#password   = your_password
+port        = 3306
+socket      = /var/lib/mysql/mysql.sock
+
+[mysqld]
+user=mysql
+port=3306
+socket=/var/lib/mysql/mysql.sock
+
+datadir=/var/lib/mysql
+innodb_data_home_dir=/var/lib/mysql
+innodb_log_group_home_dir=/var/lib/mysql
+innodb_file_per_table=1
+
+innodb_log_files_in_group=2
+
+innodb_buffer_pool_size=16M
+innodb_additional_mem_pool_size = 2M
+
+innodb_log_file_size = 5M
+innodb_log_buffer_size = 8M
+
+log-bin=/var/lib/mysql/blog/hostname
+sync_binlog=1
+default-table-type=innodb
+default-character-set=utf8
+
+# Commit時にInnoDBのログバッファを、InnoDBログファイルに書き込む
+# Commit時にディスクフラッシュ
+innodb_flush_log_at_trx_commit = 1
+
+innodb_lock_wait_timeout = 50
+
+[mysqldump]
+quick
+max_allowed_packet = 16M
+
+[mysqld_safe]
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+
+[mysql]
+default-character-set=utf8
+
+[mysqlhotcopy]
+interactive-timeout
+
+}}}
+
+''MySQL''を起動
+
+{{{
+% sudo /sbin/service mysqld start
+}}}
+
+MySQLを自動起動に設定します。
+
+{{{
+% sudo /sbin/chkconfig mysqld on
+% sudo /sbin/chkconfig --list mysqld
+}}}
+
+MySQL初期設定
+
+{{{
+% sudo mysql_secure_installation
+
+Enter current password for root (enter for none): [空ENTER]
+Set root password? [Y/n] Y
+New password: [root-password]
+Re-enter new password: [root-password]
+Remove anonymous users? [Y/n] Y
+Disallow root login remotely? [Y/n] Y
+Remove test database and access to it? [Y/n] Y
+Reload privilege tables now? [Y/n] Y
+}}}
+
+mysql用のユーザー(testuser)を作成して、ログアウト
+
+{{{
+% mysql -u root -p
+mysql> grant all privileges on testdb.* to testuser identified by 'testuser-password';
+mysql> exit
+}}}
+
+今度はtestuserでMySQLサーバーへアクセス
+
+{{{
+% mysql -u testuser -p
+}}}
+
+databaseを作成します。
+
+{{{
+mysql> create database testdb;
+mysql> show databases;
+}}}
+
+以上でMySQLテスト環境が整いました。
+

@@ -1,0 +1,51 @@
+name: 'Example'
+
+cms:
+  doc_dir: 't/samples/doc/'
+  root_dir: 't/samples/root/'
+  backup_dir: 't/samples/backup/'
+  css_files:
+    - 'common/css/base.css'
+    - 'common/css/extend.css'
+    - 'common/css/content.css'
+
+externals:
+  - href: 'http://www.exernal1.com/'
+    name: 'External Site1'
+  - href: 'http://www.exernal2.com/'
+    name: 'External Site2'
+  - href: 'http://www.exernal3.com/'
+    name: 'External Site3'
+  - href: 'http://www.exernal4.com/'
+    name: 'External Site4'
+ 
+metadata:
+  site_name: 'My Example Site'
+  author: 'okamura'
+  copyright: 'Copyright (C) All Rights Reserved.'
+  base_url: 'http://www.example.com'
+
+model:
+  tab_data:
+    base_url: '../'
+    categories:
+      - dir: home
+        name: HOME
+      - dir: 'catA'
+        name: 'CATEGORY A'
+      - dir: 'catB'
+        name: 'CATEGORY B'
+
+adsense_data:
+  client: pub-3627018862025650
+  slot: 5378782603
+
+analytics_data:
+  account: UA-16798328-1
+
+ftp_data:
+  hostname: XXX
+  username: XXX
+  password: XXX
+
+

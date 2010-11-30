@@ -1,0 +1,171 @@
+= MySQLバックアップ =
+
+'''''バックアップ動作を確認します。'''''
+
+== テスト用database ==
+
+{{{
+% mysql -u testuser -p
+mysql> use testdb;
+mysql> create table test( num int, name varchar(50) );
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> insert into test values ( 1, 'test' );
+mysql> select * from test;
+mysql> exit
+}}}
+
+== mysqldumpでのバックアップ手順 ==
+
+以下の作業を行い、バックアップが取れる状態であることを確認します。
+
+ * mysqldumpで生成されたSQL文を使用してリストア
+ * データを修正します。
+ * この時点でMySQLに異常があったと仮定して、ここでMySQLを停止します。
+ * まだ取得できていないバイナリログがあれば取得。
+
+=== SQL文を取得 ===
+
+SQLをdumpします。このときflush-logsを指定しておくと、''バイナリログ''がスイッチされます。つまりこのダンプファイル以降に発行されたSQLを使ってリストアする場合はスイッチされた後のバイナリログを使えば''リストア''が可能です。
+
+{{{
+% sudo su
+# mysqldump --user=root --password=root-password  --single-transaction --master-data=2 --flush-logs --hex-blob testdb > /backup/mysql/mysql-dump.sql
+}}}
+
+DBを更新
+
+{{{
+% mysql -u testuser -p
+mysql> use testdb;
+mysql> update test set name='test2' where num = 1;
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+mysql>exit
+}}}
+
+{{{
+% sudo /sbin/service mysqld stop
+}}}
+
+まだ取得できていないバイナリログがあれば取得します。今回はすべてコピーしておきます。
+
+{{{
+% sudo cp -fr /var/lib/mysql/blog/ /backup/mysql
+}}}
+
+リストア時、ロールフォワード時に、バイナリログを生成させないために、初期化パラメータファイルmy.cnfのlog-binに関する行をコメントアウトしておきます。
+
+{{{
+% sudo vi /etc/my.cnf
+}}}
+
+{{{
+#log-bin=/var/lib/mysql/blog/li83-21
+}}}
+
+インスタンスをリモートからの接続を禁止した状態で起動します。
+
+{{{
+% sudo mysqld_safe --defaults-file=/etc/my.cnf --skip-networking --skip-grant-tables
+}}}
+
+元に戻すSQLを発行します。
+
+{{{
+% sudo su
+# mysql --user=root --database=testdb < /backup/mysql/mysql-dump.sql
+}}}
+
+あとは障害が発生した日時より後のバイナリログを使用してロールフォワードリカバリを実行します。最初に、バイナリデータからSQL文を生成します。
+
+バイナリログの数字は適宜変更して下さい。
+
+{{{
+% sudo su
+# mysqlbinlog --disable-log-bin /backup/mysql/blog/hostname.000001 > /backup/mysql/restore.sql
+}}}
+
+リカバリ以降に行われたSQL文を発行してリストア終了
+
+{{{
+mysql --user=root --database=testdb < /backup/mysql/restore.sql
+}}}
+
+セーフモード状態のインスタンスを停止
+
+{{{
+mysqladmin shutdown --user=root --password==your-password 
+}}}
+
+初期化パラメータを正常に戻す
+
+{{{
+% sudo vi /etc/my.cnf
+}}}
+
+コメントイン
+
+{{{
+log-bin=/var/lib/mysql/blog/hostname
+}}}
+
+再起動
+
+{{{
+% sudo /sbin/service mysqld start
+}}}
+
+接続をして復元されていることを確認します。
+
+== mysqlhotcopyでのバックアップ取得方法確認 ==
+
+{{{
+% sudo mysqlhotcopy -u root -p 'your-password' testdb /backup/mysql/hotcopy
+ls /backup/mysql/hotcopy
+db.opt  test.frm
+}}}
+
+上記のファイルを/etc/my.cnfで設定されているDBファイルに差し替えればOK
+後はバイナリログをSQL文に変更して差分を実行します。
+
+
+== DBファイルのバックアップを自動実行 ==
+
+=== 実行スクリプトを準備 ===
+
+ファイル作成
+
+{{{
+% sudo vi /root/mysqlbackup.sh
+}}}
+
+下記内容を記述します。
+
+{{{
+#!/bin/bash
+PATH=/usr/bin:/bin
+
+mysqldump --user=root --password=root-password  --single-transaction --master-data=2 --flush-logs --hex-blob testdb > /backup/mysql/mysql-dump.sql
+
+rm -fr /backup/mysql/hotcopy/*
+mysqlhotcopy -u root -p 'your-password' testdb /backup/mysql/
+}}}
+
+実行権限付与
+
+{{{
+% sudo chmod +x /root/mysqlbackup.sh
+}}}
+
+=== 毎日サーバー側にバックアップファイルを作成 ===
+
+/etc/crontabに下記を追記します
+
+{{{
+% sudo vi /etc/crontab
+}}}
+
+{{{
+00 5 * * * root /root/mysqlbackup.sh
+}}}
